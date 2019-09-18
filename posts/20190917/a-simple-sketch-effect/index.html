@@ -65,57 +65,59 @@
         <h1 class="card-title">A Simple Sketch Effect</h1>
         <p class="sub-title">SEPTEMBER 17, 2019 | C++, OPENGL, GRAPHICS</p>
         <p>
-          I had always wanted to make 3D renderings appear hand-made such that they would look similar to traditional
-          2D animation. I was finally able to devise a technique that would create the effect I desired using
-          tessellation and geometry shaders and a lot of fiddling about. It's not quite realistic but it still evokes
-          the feeling I was going for.
+          I had always wanted to make 3D renderings appear hand-made, in a way similar to classical 2D animation.
+          After months of late-evening hacking, I had developed a technique that would create the effect I desired using
+          tessellation, geometry shaders, and a lot of fiddling about. I would hesitate to call the result hand-made,
+          but it still evokes the style I was going for.
         </p>
         <p>Here it is used in a later project:</p>
         <div class="card-frame" style="padding: 28% 0%;">
           <img class="card-frame-content" src="sample.png"/>
         </div>
         <p>
-          While this technique may look familiar, it is not derived from a basic cel shader. I wanted control over
-          imperfections seen in traditional animations like imperfect shapes and lines being over-drawn or off-angle.
-          Such effects cannot be easily achieved with a cel shader that has only depth and model-distinctions to work
-          from. What I ended up developing is much more involved but gives far more variance to the end result.
+          This technique may look familiar to some, but it is not derived from a basic cel shader. I wanted control over
+          sublte variations you would find in classical animations: lines being over-drawn, off-angle, or otherwise imperfect.
+          These effects cannot be (easily) achieved with a cel shader that has only depth and model-distinctions to work
+          from. What I ended up developing is much more involved, but gives far more personality to the end result.
         </p>
-        <div style="display: flex; flex-wrap: wrap; margin: 0.8em -0.4em;">
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage1.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage2.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage3.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage4.gif"/></div></div>
-        </div>
-        <h2>1. Creating A Box</h2>
+        <hr style="border: 0; height: 1px; background-color: #404040"/>
+        <h2>1. Making Lines</h2>
         <p>
-          I started off with a box since it is enough demonstrate how various situations are handled. The technique
-          works initially by drawing simple lines and builds from there. I'll go ahead and note that a purely wireframe
-          model is not sufficient for the whole effect, the triangulated faces are used for multiple things in fact.
-          More on that later.
+          I used a simple box since it is easy to visualize and will demonstrate how various situations are handled. At
+          the beginning, the technique only works off of lines. However, I'll go ahead and note that a purely wireframe
+          model is not sufficient for the whole effect; the triangular faces are actually needed for multiple things to
+          work. But, more on that later.
         </p>
         <h2>2. Adding Randomness</h2>
         <p>
           As a first step, I adjusted the vertex shader to add some randomness the vertex's position. Its pretty subtle
-          since I don't want the lines to be too sporadic, but there's already a bit of underlying complexity.
+          because I don't want the lines to be too crazy at this point.
         </p>
         <p>
-          I made sure that the randomness is deterministic and based on both the vertex and a independent "frame" value
-          that I only update 12 times a second. Its not very apparent on the 20fps gif above, but I assure you it is
-          there. I had built this at 144fps and if I hadn't added the limit, it'd be nothing but a jittery mess.
+          While this change seems simple, there's already a bit of underlying complexity to it. I made sure that the
+          randomness is deterministic and based on both the vertex and a independent "frame" value that I only change 12
+          times a second. Its not very apparent on the 20fps gif below, but I promise it is there. I had developed this
+          at 144fps and if the limit wasn't there, it'd be nothing but a jittery mess. This same method was used for
+          all sources of randonmess.
         </p>
+        <div style="display: flex; flex-wrap: wrap; margin: 0.4em -0.4em;">
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage1.gif"/></div></div>
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage2.gif"/></div></div>
+        </div>
+        <hr style="border: 0; height: 1px; background-color: #404040"/>
         <h2>3. Splitting Lines</h2>
         <p>
-          Then I started treading in unfamiliar territory. I wanted to divide lines into segments so that I add more
-          variation and not rely on just the vertex endpoints. I could have just remade the cube with intermediate
-          points, but that adds a burden to the model creation and isn't adaptive to how its actually rendered.
+          Then I started treading in unfamiliar territory. I wanted to divide each line into segments so I could add
+          more randomness and not rely on just the vertex endpoints. I could've remade the cube with intermediate
+          points, but that adds a burden to the model creation and isn't responsive to how its actually rendered.
         </p>
         <p>
-          This is done with a tessellation shader. If you don't know, a tessellation is an OpenGL feature where a
+          This can be done with tessellation shaders. If you don't know, tessellation is an OpenGL feature where a
           control shader dictates how a primitive will be subdivided and an evaluation shader that dictates how the
-          resultant points are generated. Here, it was pretty easy to take a line and create smaller lines. The trick
-          was to make the tessellation dependent on screen space; you may be able to notice that the lines that are
-          visibly shorter have less segments. That way, lines further away will stay a single line, and those closer to
-          the screen get the additional detail they need.
+          intermediate points are generated. For my purposes, it was pretty simple to take the line and split it up
+          evenly into smaller lines. I quickly noticed that I only needed to split up lines that needed the extra
+          detail, so I made the subdivision count dependent on screen space. That way, lines further away will stay a
+          single line, and those closer to the screen get the additional segments they need.
         </p>
         <p>
           As a side note, I made sure that the individual segments stay connected in this example, but they don't have
@@ -123,59 +125,129 @@
         </p>
         <h2>4. Thickening Lines</h2>
         <p>
-          OpenGL lines are very limited; they're only good for wireframes since you can't control them much beyond glLineWidth() and glLineStipple().
-          So I used a geometry shader to transform those lines into a triangles so that there is width
-          that can be manipulated. At this point, they are just rectangles, but I do a bit more with them...
+          Basic lines in OpenGL are severely limited; they're only really good for wireframes since you can't control
+          them much beyond color, width, and stippling. Fortunately, OpenGL also has geometry shaders, which can
+          transform a primitive into multiple/different primitives. So I used this to transform each line into a couple
+          triangles, making a thin rectangle, so that I could manipulate them easier. At this point, it looks a bit
+          rough, but I go further...
         </p>
-        <div style="display: flex; flex-wrap: wrap; margin: 0.8em -0.4em;">
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage5.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage6.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage7.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage8.gif"/></div></div>
+        <div style="display: flex; flex-wrap: wrap; margin: 0.4em -0.4em;">
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage3.gif"/></div></div>
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage4.gif"/></div></div>
         </div>
+        <hr style="border: 0; height: 1px; background-color: #404040"/>
         <h2>5. Adding Endcaps</h2>
         <p>
           Since stopping each line abruptly doesn't look that good, I extended the geometry shader to output eight
           vertexes per line instead of four. That way I could add some smaller bits on the ends to make them appear
-          rounded. It doesn't look good at larger scales, but it looks convincing at a more modest line width.
+          rounded. It doesn't look good when zoomed-in, but it looks convincing at a more modest line width.
         </p>
         <div class="card-frame" style="padding: 16.5% 0%;">
           <img class="card-frame-content" style="filter: brightness(96%)" src="detail1.png"/>
         </div>
         <p>
-          Another side note, this was where I really started caring about it rendering correctly regardless of aspect
-          ratio. Since the points are already in clip-space, extending from the points uniformly would appear stretched
-          on most displays. I was really frustrated at first trying to account for the aspect ratio in all the required
-          places, but I eventually just transformed the points similar to screen-space, did what I had to, and
-          transformed them back to create the points. It was much simpler that way.
+          This was where I really started caring about it rendering correctly regardless of aspect ratio. Since the
+          points in the geometry shader are already in clip-space, extending from the points uniformly would appear
+          skewed on a non-square viewport. I was really frustrated at first trying to account for it in all the required
+          places, but I eventually just normalized the points to screen-space, did what I had to, and transformed them
+          back at the end. It was much simpler that way.
         </p>
         <h2>6. Using Depth</h2>
         <p>
-          This is getting more complicated again; I don't want to draw lines that are obscured by being on the backside
+          This is getting even more complicated; I don't want to draw lines that are obscured by being on the backside
           or even behind other objects. For that, I need depth.
         </p>
         <p>
-          So here's where I need the original traingular mesh from the model. I render the model to a separate
-          framebuffer without any effects, textures, or even color since all I need is the depth image. I then send that
-          to the geometry shader, which does the depth check manually, and can choose to omit that line. A lot of work,
-          but now rendered objects look solid.
+          So here's where I need the model's triangular mesh. I can render the model normally to a separate framebuffer
+          without any visual effects, textures, or even color since all I need is the depth. I then send that depth
+          texture to the geometry shader, which checks the depth manually and will reject lines that are hidden. A lot
+          of work, but now rendered objects look solid.
         </p>
+        <div style="display: flex; flex-wrap: wrap; margin: 0.4em -0.4em;">
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage5.gif"/></div></div>
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage6.gif"/></div></div>
+        </div>
+        <hr style="border: 0; height: 1px; background-color: #404040"/>
         <h2>7. Detecting Edges</h2>
+        <p>
+          So far, I've been drawing the cube using 12 lines, but a triangular mesh of a cube would actually have 18
+          lines: I haven't been drawing the diagonals. In this case, the diagonals were irrelevant, but I can't make any
+          assumptions on a more complicated model; each line of the mesh will need to be considered. However, just
+          drawing all the front-facing lines won't look good either. So much like a cel shader, I want only the lines on
+          the edges to be drawn.
+        </p>
+        <p>
+          How can I determine when a line is an edge, given the current camera view? Well, a line from a solid mesh will
+          have two adjacent faces, and it will be on the edge if one face is pointing towards the camera and one is
+          pointing away. However, to know about the adjacent faces' orientations, I need more than just the two points
+          of the line. Instead of drawing two vertices with GL_LINES, I can send four vertices using GL_PATCHES and
+          interpret them in order A-B-C-D: where B-C is the original line, A-B-C is one face, and B-C-D is the other.
+        </p>
+        <div class="card-frame" style="padding: 16.5% 0%;">
+          <img class="card-frame-content" style="filter: brightness(96%)" src="detail2.png"/>
+        </div>
+        <p>
+          After the points are transformed in the vertex shader, the tessellation shader will consume all four points,
+          determine if it is an edge, and, if not, stop further processing. To make things easier, I don't actually have
+          to calculate which way the faces are pointing; all I need to do is determine if both adjacent points are on
+          the same side of the line when viewed from the camera. I did this using a trimmed-down version of the
+          distance-from-point-to-line formula and check if both points produce the same sign.
+        </p>
         <h2>8. Handling Interruptions</h2>
-        <h2>Sample Effects</h2>
+        <p>
+          The last bit is to handle situations where a line is only partially obscured. Before, if either end of a line
+          was hidden, the geometry shader didn't draw it at all. This doesn't work so well when models intersect or if
+          there is something in front of it. So, instead of using the line ends, it considers the intermediate points
+          as well.
+        </p>
+        <p>
+          I actually went even further; in situations where one end was obscured and the other wasn't, I used a binary
+          search to determine where the line should actually end. This adds a lot more depth checks, but I made the
+          search resolution configurable since some styles are sharp and others are more loose about intersecting lines.
+        </p>
+        <div style="display: flex; flex-wrap: wrap; margin: 0.4em -0.4em;">
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage7.gif"/></div></div>
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: brightness(96%)" class="card-frame-content" src="stage8.gif"/></div></div>
+        </div>
+        <hr style="border: 0; height: 1px; background-color: #404040"/>
+        <h2>Conclusion</h2>
+        <p>
+          All the demonstrations here can be found on my Twitter along with continued progress and hilarious glitches. I
+          mostly post game-development stuff there, but give a follow if you are interested in anything I've shown here.
+        </p>
+        <h3>Performance</h3>
+        <p>
+          Given that models can have 100,000s of lines, and each line could be split into 64 smaller lines, and each
+          line could generate 6 triangles, there's a potentially very large branching factor. However, I've yet to see a
+          signifigant performance impact; I haven't really tried, but metrics on drawing 100,000-line models on my
+          high-ish end graphics card barely registers a blip (modern graphics cards are amazing).
+        </p>
+        <p>
+          What you have to consider is how much of those lines are thrown out. The first step beyond vertex
+          transformations is to see if a line is an edge, which I've made very cheap, and that filters out 90% or more
+          of the lines depending on the model complexity. The largest chunk of processing is actually the depth testing
+          since querying textures is comparatively slow on the graphics card. I'll also point out that this technique
+          works equally well regardless of resolution, the fragment shader plays no part in it besides showing black.
+        </p>
+        <h3>Integration Into Other Renderers</h3>
+        <p>
+          I wrote a custom Python script to export models with the important information and made a C++/OpenGL program
+          that will load it up and render it. So this was all custom work and, as much as I'd like, I don't think it is
+          possible to use this technique in a more mainstream rendering pipeline. I haven't looked super hard, but much
+          of the work is done outside the traditional vertex and fragment shaders that are typically used for visual
+          effects. However, if someone knows a lot about custom rendering in Blender, Unity or anything, let me know if
+          it is possible.
+        </p>
+        <h3>Samples</h3>
         <p>
           Here are some quick samples I made for visual effects that you wouldn't be able to achieve with a traditional
           cel shader. Wave effects, ripples, movement lines, smears, etc. By manipulating how each line is drawn, the
           possibilities are endless.
         </p>
-        <div style="display: flex; flex-wrap: wrap; margin: 0.8em -0.4em;">
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: grayscale(100%) brightness(110%)" class="card-frame-content" src="demo1.gif"/></div></div>
-          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: grayscale(100%) brightness(110%)" class="card-frame-content" src="demo2.gif"/></div></div>
+        <div style="display: flex; flex-wrap: wrap; margin: 0.4em -0.4em;">
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: grayscale(100%) brightness(108%)" class="card-frame-content" src="demo1.gif"/></div></div>
+          <div class="mini-card-container"><div class="mini-card-frame"><img style="filter: grayscale(100%) brightness(108%)" class="card-frame-content" src="demo2.gif"/></div></div>
         </div>
-        <p>
-          All the demonstrations here can be found on my Twitter along with continued progress and hilarious glitches. I
-          mostly post game-development stuff there, but give a follow if you are interested in anything I've shown here.
-        </p>
       </div>
       <footer style="color: dimgray" class="card">
         Copyright © Trevor Wilson 2019
