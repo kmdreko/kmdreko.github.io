@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="author" content="Trevor Wilson"/>
+    <meta name="copyright"content="Trevor Wilson 2025"/>
+    <meta name="revised" content="2025-02-15T00:00:00Z"/>
+    <meta name="language" content="EN">
+    <meta name="keywords" content="C++,OpenGL,Graphics"/>
+    <meta name="description" content="I developed a rendering technique that creates a hand-drawn sketch effect with infinite detail."/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="og:title" content="A Simple Sketch Effect, Part 2"/>
+    <meta name="og:description" content="I developed a rendering technique that creates a hand-drawn sketch effect with infinite detail."/>
+    <meta name="og:image" content="https://kmdreko.github.io/posts/20250215/a-simple-sketch-effect-part-2/sample.png"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:site" content="@kmdreko_"/>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <title>A Simple Sketch Effect, Part 2</title>
+  </head>
+  <body>
+    <style>
+      body { 
+        display: flex;
+        height: 100%;
+        margin: 0;
+        background-color: whitesmoke;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' height='100' width='100'><path stroke='%23e8e8e8' d='M10.5,0v100m10,0v-100m10,0v100m10,0v-100m10,0v100m10,0v-100m10,0v100m10,0v-100m10,0v100M0,10.5h100m0,10h-100m0,10h100m0,10h-100m0,10h100m0,10h-100m0,10h100m0,10h-100m0,10h100'/><path stroke='%23d8d8d8' d='M0.5,0v100M0,0.5h100'/></svg>");
+        background-position: top;
+        font-family: Helvetica, Arial, sans-serif;
+        color: #303030;
+      }
+
+      p { margin: 1em 0; line-height: 1.5; }
+
+      a { color: #303030; }
+      a:link { font-weight: bold; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      #left { flex: 1 100; }
+      #center { flex: 0 1 800px; display: flex; flex-direction: column; min-width: 400px; }
+      #right { flex: 1 100; }
+
+      header { flex: 0 0 50px; margin: 0 .75em 1.5em .75em; border-radius: 0 0 .15em .15em; position: relative; }
+      footer { flex: 0 0 50px; margin: 0 .75em 0 .75em; border-radius: .15em .15em 0 0; }
+
+      .card { padding: .8em; box-shadow: 0 0 .25em gray; background-color: white; }
+      .content { padding: 0 .8em; flex: 1 1 auto; margin: 0 .75em 1.5em .75em; border-radius: .15em; }
+
+      .blog-title { margin: -0.225em 0; font-size: 3em; font-weight: bold; }
+      .card-title { margin-bottom: -0.0em; }
+      .sub-title { margin: 0; color: dimgray; }
+
+      .card-frame { box-sizing: border-box; width: 100%; padding: 33.245% 0%; position: relative; border: 1px solid #404040; background-color: whitesmoke; margin: 0.8em 0; }
+      .card-frame-content { position: absolute; top: 0; height: 100%; width: 100%; }
+      .mini-card-container { flex: 1 1 35%; margin: .8em; min-width: 150px; margin: .4em; }
+      .mini-card-frame { box-sizing: border-box; width: 100%; padding: 28% 0%; position: relative; border: 1px solid #404040; background-color: whitesmoke; }
+    </style>
+    <div id="left"></div>
+    <div id="center">
+      <header class="card">
+        <a class="blog-title" href="/">kmdreko's</a>
+        <p class="sub-title">A SIMPLE BLOG</p>
+        <div style="position: absolute; bottom: .8em; right: .8em;">
+          <a href="https://twitter.com/kmdreko_"><img height="32" width="32" title="@kmdreko_ on Twitter" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><circle fill='%23404040' cx='200' cy='200' r='200'/><path fill='%23FFFFFF' d='M163.4,305.5c88.7,0,137.2-73.5,137.2-137.2c0-2.1,0-4.2-0.1-6.2c9.4-6.8,17.6-15.3,24.1-25c-8.6,3.8-17.9,6.4-27.7,7.6c10-6,17.6-15.4,21.2-26.7c-9.3,5.5-19.6,9.5-30.6,11.7c-8.8-9.4-21.3-15.2-35.2-15.2c-26.6,0-48.2,21.6-48.2,48.2c0,3.8,0.4,7.5,1.3,11c-40.1-2-75.6-21.2-99.4-50.4c-4.1,7.1-6.5,15.4-6.5,24.2c0,16.7,8.5,31.5,21.5,40.1c-7.9-0.2-15.3-2.4-21.8-6c0,0.2,0,0.4,0,0.6c0,23.4,16.6,42.8,38.7,47.3c-4,1.1-8.3,1.7-12.7,1.7c-3.1,0-6.1-0.3-9.1-0.9c6.1,19.2,23.9,33.1,45,33.5c-16.5,12.9-37.3,20.6-59.9,20.6c-3.9,0-7.7-0.2-11.5-0.7C110.8,297.5,136.2,305.5,163.4,305.5'/></svg>"/></a>
+          <a href="https://github.com/kmdreko"><img height="32" width="32" title="kmdreko on GitHub" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23404040' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/></svg>"/></a>
+        </div>
+      </header>
+      <div class="content card">
+        <h1 class="card-title">A Simple Sketch Effect, Part 2</h1>
+        <p class="sub-title">FEBRUARY 15, 2025 | C++, OPENGL, GRAPHICS</p>
+        <p>
+          I recently saw a video by <a href="https://www.youtube.com/@runevision">runevision</a> on
+          <a href="https://www.youtube.com/watch?v=HPqGaIMVuLs">Surface-Stable Fractal Dithering</a> - it shows a shader
+          technique that effectively adds details to textures as you get closer. It reminded me that I had done
+          something very similar a while back when working on sketch-stylized rendering that I showed off in
+          <a href="https://kmdreko.github.io/posts/20190917/a-simple-sketch-effect/">a previous post</a>. Though mine
+          strived to simulate lines drawn like hatch shading rather than a dither pattern.
+        </p>
+        <div class="card-frame" style="padding: 28% 0%;">
+          <img class="card-frame-content" src="sample.png"/>
+        </div>
+        <p>
+          Its been a while since it has been on my mind but I'll do my best to describe how it worked. The code is
+          available on my GitHub <a href="https://github.com/kmdreko/worlds-of-white-game">here</a>.
+        </p>
+        <h2>Infinitely Detailed Stripes</h2>
+        <p>
+          The core of the technique is to draw a bunch of parallel lines since that is roughly what hatch shading looks
+          like. Simple stripes are easy to do, but I didn't want the "strokes" to be huge as you got closer nor did I
+          want them to totally disappear at a distance.
+        </p>
+        <p>
+          I decided the easiest place to start was to project every pixel onto a world-space plane so that model/texture
+          size and position were not a factor and I also set it at an angle to avoid that mapping onto surfaces poorly.
+          I also provided a scale factor to indicate "how thick to draw the line" in world space that was correlated
+          against the depth so the scaling was the same for close and far away objects. The scale was also affected by
+          the texture normal since otherwise grazing angle stripes would look much thinner than head-on angled stripes.
+        </p>
+        <p>
+          Once you have a scale and a stable world-space mapping, the pixel can be drawn either black or white based on
+          those factors. I incorporated multiple "layers" of stripes each with double the "detail" of the prior. Imagine
+          one layer where stripes are drawn at 0.5, 1.5, 2.5, etc with the width of the line based on the scale. Another
+          layer would have stripes at 0.25, 0.75, 1.25, etc with the same line width. However a layer would not be drawn
+          if the scale is larger than the half-width between, otherwise you'd get a lot overlap at a distance. I used
+          ten layers so that the full clipping range of 0.1 to 100.0 were covered. The layers also worked in an
+          SDF-style way so that the stripes of a more detailed layer would ease in instead of pop in.
+        </p>
+        <p>
+          I should create a shader just based on this idea; it would look pretty trippy.
+        </p>
+        <h2>Hand-drawn Aesthetics</h2>
+        <p>
+          Obviously, solid black and white stripes don't look natural. To make it look more realistic, I incorporated
+          noise. I used a perlin noise generator and mixed it with the SDF-style stripes to fade them in and out along
+          their length. Each layer individually used its own perlin noise values so that it didn't just look like perlin
+          + stripes. I think I also used an overall noise texture to indicate overall what areas were more "shaded".
+        </p>
+        <p>
+          Another touch was to make the world coordinate mapping slightly different for each layer so they can be at an
+          off angle and provide more "imperfection".
+        </p>
+        <p>
+          And another bonus that I got for free was that the way I combined the perlin and the stripes meant that they
+          could appear to "curve" slightly, which I think is a nice touch.
+        </p>
+        <div class="card-frame" style="padding: 28% 0%;">
+          <video autoplay loop muted class="card-frame-content">
+            <source src="demo.mp4" type="video/mp4" />
+          </video>
+        </div>
+        <h2>Future Work</h2>
+        <p>
+          There is obviously a lot more that could be done to make it look even better:
+        </p>
+        <ul>
+            <li>use multiple stripes at different angles to get a cross-hatch style</li>
+            <li>use the texture itself to determine whether it should be drawn darker (i.e. shaded more)</li>
+            <li>incorporate shadows or even just SSAO to give it a more real effect</li>
+        </ul>
+        <p>
+          Maybe I'll get around to improving it some day.
+        </p>
+      </div>
+      <footer style="color: dimgray" class="card">
+        Copyright © Trevor Wilson 2025
+      </footer>
+    </div>
+    <div id="right"></div>
+  </body>
+</html>
