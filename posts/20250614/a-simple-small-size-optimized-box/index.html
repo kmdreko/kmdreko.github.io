@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="author" content="Trevor Wilson"/>
+    <meta name="copyright"content="Trevor Wilson 2025"/>
+    <meta name="revised" content="2025-06-14T00:00:00Z"/>
+    <meta name="language" content="EN">
+    <meta name="keywords" content="Rust,Memory"/>
+    <meta name="description" content="I created my own Box-like type that avoids an allocation by storing the value in-place if small enough."/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="og:title" content="A Simple Small-size Optimized Box"/>
+    <meta name="og:description" content="I created my own Box-like type that avoids an allocation by storing the value in-place if small enough."/>
+    <meta name="og:image" content="https://kmdreko.github.io/posts/20250614/a-simple-small-size-optimized-box/sample.png"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:site" content="@kmdreko_"/>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <title>A Simple Small-size Optimized Box</title>
+  </head>
+  <body>
+    <style>
+      body { 
+        display: flex;
+        height: 100%;
+        margin: 0;
+        background-color: whitesmoke;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' height='100' width='100'><path stroke='%23e8e8e8' d='M10.5,0v100m10,0v-100m10,0v100m10,0v-100m10,0v100m10,0v-100m10,0v100m10,0v-100m10,0v100M0,10.5h100m0,10h-100m0,10h100m0,10h-100m0,10h100m0,10h-100m0,10h100m0,10h-100m0,10h100'/><path stroke='%23d8d8d8' d='M0.5,0v100M0,0.5h100'/></svg>");
+        background-position: top;
+        font-family: Helvetica, Arial, sans-serif;
+        color: #303030;
+      }
+
+      p { margin: 1em 0; line-height: 1.5; }
+
+      a { color: #303030; }
+      a:link { font-weight: bold; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      #left { flex: 1 100; }
+      #center { flex: 0 1 800px; display: flex; flex-direction: column; min-width: 400px; }
+      #right { flex: 1 100; }
+
+      header { flex: 0 0 50px; margin: 0 .75em 1.5em .75em; border-radius: 0 0 .15em .15em; position: relative; }
+      footer { flex: 0 0 50px; margin: 0 .75em 0 .75em; border-radius: .15em .15em 0 0; }
+
+      .card { padding: .8em; box-shadow: 0 0 .25em gray; background-color: white; }
+      .content { padding: 0 .8em; flex: 1 1 auto; margin: 0 .75em 1.5em .75em; border-radius: .15em; }
+
+      .blog-title { margin: -0.225em 0; font-size: 3em; font-weight: bold; }
+      .card-title { margin-bottom: -0.0em; }
+      .sub-title { margin: 0; color: dimgray; }
+
+      .card-frame { box-sizing: border-box; width: 100%; padding: 33.245% 0%; position: relative; border: 1px solid #404040; background-color: whitesmoke; margin: 0.8em 0; }
+      .card-frame-content { position: absolute; top: 0; height: 100%; width: 100%; }
+      .mini-card-container { flex: 1 1 35%; margin: .8em; min-width: 150px; margin: .4em; }
+      .mini-card-frame { box-sizing: border-box; width: 100%; padding: 28% 0%; position: relative; border: 1px solid #404040; background-color: whitesmoke; }
+
+      pre { background-color: whitesmoke; border: 1px solid #404040; padding: 0.5em; }
+      p code, ul code { background-color: whitesmoke; font-size: 17px; line-height: 16px; }
+    </style>
+    <div id="left"></div>
+    <div id="center">
+      <header class="card">
+        <a class="blog-title" href="/">kmdreko's</a>
+        <p class="sub-title">A SIMPLE BLOG</p>
+        <div style="position: absolute; bottom: .8em; right: .8em;">
+          <a href="https://twitter.com/kmdreko_"><img height="32" width="32" title="@kmdreko_ on Twitter" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><circle fill='%23404040' cx='200' cy='200' r='200'/><path fill='%23FFFFFF' d='M163.4,305.5c88.7,0,137.2-73.5,137.2-137.2c0-2.1,0-4.2-0.1-6.2c9.4-6.8,17.6-15.3,24.1-25c-8.6,3.8-17.9,6.4-27.7,7.6c10-6,17.6-15.4,21.2-26.7c-9.3,5.5-19.6,9.5-30.6,11.7c-8.8-9.4-21.3-15.2-35.2-15.2c-26.6,0-48.2,21.6-48.2,48.2c0,3.8,0.4,7.5,1.3,11c-40.1-2-75.6-21.2-99.4-50.4c-4.1,7.1-6.5,15.4-6.5,24.2c0,16.7,8.5,31.5,21.5,40.1c-7.9-0.2-15.3-2.4-21.8-6c0,0.2,0,0.4,0,0.6c0,23.4,16.6,42.8,38.7,47.3c-4,1.1-8.3,1.7-12.7,1.7c-3.1,0-6.1-0.3-9.1-0.9c6.1,19.2,23.9,33.1,45,33.5c-16.5,12.9-37.3,20.6-59.9,20.6c-3.9,0-7.7-0.2-11.5-0.7C110.8,297.5,136.2,305.5,163.4,305.5'/></svg>"/></a>
+          <a href="https://github.com/kmdreko"><img height="32" width="32" title="kmdreko on GitHub" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23404040' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/></svg>"/></a>
+        </div>
+      </header>
+      <div class="content card">
+        <h1 class="card-title">A Simple Small-size Optimized Box</h1>
+        <p class="sub-title">JUNE 14, 2025 | RUST, MEMORY</p>
+        <p>I created my own <code>Box</code>-like type that avoids an allocation by storing the value in-place if small enough.
+            I have seen plenty of crates with short-string optimizations, but I hadn&#39;t encountered the same for the general
+            case. Likely because the features to support it are unstable and would require using the <em>nightly</em>
+            compiler, but I wanted to see what it would take.</p>
+        <div class="card-frame" style="padding: 28% 0%;">
+          <img class="card-frame-content" src="sample.png"/>
+        </div>
+        <h2 id="background">Background</h2>
+        <p>In case you have no idea what I&#39;m talking about, a <a
+                href="https://doc.rust-lang.org/stable/std/boxed/struct.Box.html"><code>Box</code></a> in Rust points to a
+            separate memory allocation to hold a value and provides ownership semantics for it - i.e. it will clean-up after
+            itself when it goes out of scope by dropping the value and freeing the allocated memory. The act of acquiring and
+            releasing that memory can have a non-negligible cost and thus boxing a value is generally avoided unless necessary.
+        </p>
+        <p>A pattern that often necessitates a <code>Box</code> is the unification of trait objects. Polymorphism can be
+            achieved in Rust by implementing traits and using dynamic dispatch via <code>dyn Trait</code>. This is a type that
+            obscures the concrete type behind it leaving only method accessible through the trait, but because it can represent
+            any implementation which can be of varying sizes it is an <em>unsized</em> type. <a
+                href="https://doc.rust-lang.org/book/ch20-03-advanced-types.html#dynamically-sized-types-and-the-sized-trait">Unsized
+                types</a> are difficult to work with and the go-to wrapper is <code>Box&lt;dyn Trait&gt;</code> since the box
+            will have a statically known size even if the value does not.</p>
+        <p>So boxing is often necessary for trait objects, but what if we could avoid the allocation cost? The <code>Box</code>
+            needs to hold a pointer to the data, but what if the value is smaller than the pointer pointing to it? We could just
+            store the value where we&#39;d keep that pointer instead and skip the allocator. Well that&#39;s the idea behind the
+            small-size optimization.</p>
+        <p>Quick side note: the standard <code>Box</code> somewhat does this optimization already, but only for zero-sized
+            types. Obviously no memory needs to be allocated for a type that has no size, so the creation of the
+            <code>Box</code> will short-circuit and just set the pointer to a dummy address.</p>
+        <h2 id="demo">Demo</h2>
+        <p>The <a href="https://crates.io/crates/ssobox">ssobox</a> crate is published so you can try it for yourself:</p>
+        <pre><code class="lang-rust"><span class="hljs-keyword">use</span> ssobox::SsoBox;
+
+<span class="hljs-keyword">let</span> debuggables: [SsoBox&lt;dyn Debug&gt;; <span class="hljs-number">5</span>] = [
+    SsoBox::new_unsized(()),
+    SsoBox::new_unsized(<span class="hljs-number">1.0</span>),
+    SsoBox::new_unsized([<span class="hljs-number">42.0</span>, <span class="hljs-number">99.9</span>]),
+    SsoBox::new_unsized(<span class="hljs-string">"test test test"</span>),
+    SsoBox::new_unsized(<span class="hljs-built_in">vec!</span>[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, <span class="hljs-number">4</span>]),
+];
+
+<span class="hljs-keyword">for</span> (idx, item) <span class="hljs-keyword">in</span> debuggables.iter().enumerate() {
+    <span class="hljs-keyword">let</span> inhabits = <span class="hljs-keyword">if</span> SsoBox::inhabited(&amp;item) { <span class="hljs-string">"T"</span> } <span class="hljs-keyword">else</span> { <span class="hljs-string">"F"</span> };
+
+    <span class="hljs-built_in">println!</span>(
+        <span class="hljs-string">"{idx} {inhabits} {:018p} - {:?}"</span>,
+        item.as_ref() <span class="hljs-keyword">as</span> *<span class="hljs-keyword">const</span> dyn Debug <span class="hljs-keyword">as</span> *<span class="hljs-keyword">const</span> (),
+        item.as_ref(),
+    );
+}</code></pre>
+        <pre><code><span class="hljs-symbol">0 </span>T <span class="hljs-number">0</span>x000000556a9fef48 - ()
+<span class="hljs-symbol">1 </span>T <span class="hljs-number">0</span>x000000556a9fef60 - <span class="hljs-number">1.0</span>
+<span class="hljs-symbol">2 </span>T <span class="hljs-number">0</span>x000000556a9fef78 - [<span class="hljs-number">42.0</span>, <span class="hljs-number">99.9</span>]
+<span class="hljs-symbol">3 </span>T <span class="hljs-number">0</span>x000000556a9fef90 - <span class="hljs-string">"test test test"</span>
+<span class="hljs-symbol">4 </span>F <span class="hljs-number">0</span>x000001a6cc0d5350 - [<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, <span class="hljs-number">4</span>]</code></pre>
+        <p>In this simple demonstration, only the last value holding a <code>Vec</code> is allocated. All the other values are
+            small enough to be stored in-place.</p>
+        <h2 id="implementation">Implementation</h2>
+        <p>Lets start with the type definition as our foundation:</p>
+        <pre><code>pub <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SsoBox</span>&lt;<span class="hljs-title">T</span>: ?<span class="hljs-title">Sized</span>&gt; {</span>
+    <span class="hljs-symbol">meta:</span> &lt;T <span class="hljs-keyword">as</span> Pointee&gt;::Metadata,
+    <span class="hljs-symbol">data:</span> SsoBoxData,
+}
+
+<span class="hljs-class"><span class="hljs-keyword">union</span> <span class="hljs-title">SsoBoxData</span> {</span>
+    <span class="hljs-symbol">ptr:</span> *const (),
+    <span class="hljs-symbol">buf:</span> MaybeUninit&lt;[*const (); <span class="hljs-number">2</span>]&gt;,
+}</code></pre>
+        <p>First, yes this is a rare instance of <code>union</code> in Rust. It allows us to store either a pointer or a buffer
+            in which to store other values. We just have to keep track ourselves which one is being used. In the current
+            implementation, I opted to make the buffer larger than a single pointer. This makes an <code>SsoBox</code> larger
+            than the equivalent <code>Box</code> but it ends up the same size as a <code>String</code> or <code>Vec</code>.</p>
+        <p>Next, lets explain the <code>&lt;T as Pointee&gt;::Metadata</code> part. <code>Pointee</code> is an auto trait
+            that describes how a pointer to that type is structured. For the uninitiated, all kinds
+            of pointers may be &quot;fat&quot; if the type is unsized. You can imagine that
+            <em>all</em> pointer types have some <code>Pointee::Metadata</code> attached to them, but for the case of
+            <code>Sized</code> types, this is just <code>()</code> - a.k.a. nothing. For slices, the pointer stores the length
+            of the slice as its metadata. And for trait objects, the pointer stores a vtable used to dispatch calls for the
+            concrete type. Storing the <code>&lt;T as Pointee&gt;::Metadata</code> on its own allows us to essentially separate
+            the raw data pointer from its metadata so that we can be flexible how we reconstruct it.</p>
+        <p>A question you may be asking: How do you determine whether the value is stored in-place or via an allocation? And how
+            do you do determine that before knowing where the data pointer should point?</p>
+        <pre><code><span class="hljs-keyword">unsafe</span> <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">inhabitable</span></span>&lt;T: ?<span class="hljs-built_in">Sized</span>&gt;(meta: &lt;T <span class="hljs-keyword">as</span> Pointee&gt;::Metadata) -&gt; <span class="hljs-keyword">bool</span> {
+    <span class="hljs-keyword">let</span> value_layout = Layout::for_value_raw(std::ptr::from_raw_parts(&amp;(), meta));
+    <span class="hljs-keyword">let</span> buffer_layout = Layout::new::&lt;[*<span class="hljs-keyword">const</span> (); <span class="hljs-number">2</span>]&gt;();
+
+    value_layout.size() &lt;= buffer_layout.size() &amp;&amp; value_layout.align() &lt;= buffer_layout.align()
+}</code></pre>
+        <p>The final check is self-explanatory, but you may notice some trickery in the way I&#39;ve calculated the value&#39;s
+            layout. The metadata should be reflective of the value being stored, but the data pointer I&#39;ve simply manifested
+            from <code>&amp;()</code>. I can do this because the safety requirements for <a
+                href="https://doc.rust-lang.org/stable/std/alloc/struct.Layout.html#method.for_value_raw"><code>for_value_raw</code></a>,
+            make no mention that the data pointer needs to be valid. And conceptually, it shouldn&#39;t need to be - the
+            size of a trait object is available through the vtable pointer, not the value itself - and the size of the slice is
+            calculated from the length (i.e. the metadata) and the statically known size of the elements.</p>
+        <p>You can view the full implementation in the repository.</p>
+        <h2 id="performance">Performance</h2>
+        <p>This doesn&#39;t come for free. The SSO box now has a condition to check whenever an unsized value is accessed from
+            the box. With a standard <code>Box</code>, its representation is equivalent to that of a reference, so deref-ing it
+            is essentially a no-op. Whereas with SSO box, some deduction is needed to determine whether the value was stored
+            in-place or on the heap:</p>
+        <pre><code><span class="hljs-meta">#[inline(never)]</span>
+<span class="hljs-keyword">pub</span> <span class="hljs-function"><span class="hljs-keyword">fn</span> <span class="hljs-title">deref_trait_demo</span></span>(sso: &amp;SsoBox&lt;dyn Display&gt;) -&gt; &amp;dyn Display {
+    &amp;**sso
+}</code></pre>
+        <pre><code><span class="hljs-symbol">deref_trait_demo:</span>
+    <span class="hljs-keyword">mov</span> <span class="hljs-built_in">rdx</span>, <span class="hljs-built_in">qword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rcx</span>]
+    <span class="hljs-keyword">mov</span> <span class="hljs-built_in">r8</span>, <span class="hljs-built_in">qword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rcx</span> + <span class="hljs-number">8</span>]
+    <span class="hljs-keyword">lea</span> <span class="hljs-built_in">rax</span>, [<span class="hljs-built_in">rcx</span> + <span class="hljs-number">8</span>]
+    <span class="hljs-keyword">cmp</span> <span class="hljs-built_in">qword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rdx</span> + <span class="hljs-number">16</span>], <span class="hljs-number">9</span>    # check alignment
+    <span class="hljs-keyword">cmovae</span> <span class="hljs-built_in">rax</span>, <span class="hljs-built_in">r8</span>
+    <span class="hljs-keyword">cmp</span> <span class="hljs-built_in">qword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rdx</span> + <span class="hljs-number">8</span>], <span class="hljs-number">17</span>    # check size
+    <span class="hljs-keyword">cmovae</span> <span class="hljs-built_in">rax</span>, <span class="hljs-built_in">r8</span>
+    <span class="hljs-keyword">ret</span></code></pre>
+        <p>I have some micro-benchmarks to try to quantify the costs. Lets start with access - this shows the time taken to call
+            a trait method that returns a constant based on its size:</p>
+        <pre><code>        | <span class="hljs-type">Box</span>        | <span class="hljs-type">SsoBox</span>     | <span class="hljs-type">diff</span>
+empty   | <span class="hljs-type">1</span><span class="hljs-number">.2634</span> ns  | <span class="hljs-type">1</span><span class="hljs-number">.2727</span> ns  | <span class="hljs-type">+0</span><span class="hljs-number">.74</span>%
+small   | <span class="hljs-type">1</span><span class="hljs-number">.2624</span> ns  | <span class="hljs-type">1</span><span class="hljs-number">.2704</span> ns  | <span class="hljs-type">+0</span><span class="hljs-number">.63</span>%
+large   | <span class="hljs-type">1</span><span class="hljs-number">.2651</span> ns  | <span class="hljs-type">1</span><span class="hljs-number">.2730</span> ns  | <span class="hljs-type">+0</span><span class="hljs-number">.62</span>%
+varied  | <span class="hljs-type">1</span><span class="hljs-number">.3725</span> ns  | <span class="hljs-type">1</span><span class="hljs-number">.8443</span> ns  | <span class="hljs-type">+34</span><span class="hljs-number">.4</span>%</code></pre>
+        <p>I&#39;m unsure exactly how the difference seems non-existent on the fixed size benchmarks. I guess its from
+            the CPU being clever with multiple iterations of the same thing, so the &quot;varied&quot; benchmark uses different
+            sized traits in rapid-succession to try to get the worst case scenario. So in the worst case, accessing an
+            <code>SsoBox</code> takes about half a nanosecond extra - or about 2 clock cycles on my system. Not bad.</p>
+        <p>But where the small-size optimization shines is by skipping memory allocations, so lets look at the time to create
+            and drop an <code>SsoBox</code> of varying sizes:</p>
+        <pre><code>        | <span class="hljs-type">Box</span>        | <span class="hljs-type">SsoBox</span>     | <span class="hljs-type">diff</span>
+empty   | <span class="hljs-type">0</span><span class="hljs-number">.8503</span> ns  | <span class="hljs-type">0</span><span class="hljs-number">.6374</span> ns  | <span class="hljs-type">-25</span><span class="hljs-number">.0</span>%
+small   | <span class="hljs-type">30</span><span class="hljs-number">.505</span> ns  | <span class="hljs-type">1</span><span class="hljs-number">.2690</span> ns  | <span class="hljs-type">-95</span><span class="hljs-number">.8</span>%
+large   | <span class="hljs-type">31</span><span class="hljs-number">.867</span> ns  | <span class="hljs-type">31</span><span class="hljs-number">.010</span> ns  | <span class="hljs-type">-2</span><span class="hljs-number">.69</span>%</code></pre>
+        <p>The &quot;small&quot; case where the value would normally be allocated is night and day! This is using the default
+            Windows allocator, and different allocators may have different costs, but its clear that it cuts that cost
+            completely out of the equation.</p>
+        <p>I&#39;m not 100% sure how the &quot;empty&quot; case (a.k.a. a zero-sized value) is faster than the standard
+            <code>Box</code>. My guess is that <code>SsoBox</code> leaves the rest of the box uninitialized while a
+            <code>Box</code> has to write a dummy pointer. Maybe that saves a clock cycle.</p>
+        <p>Micro-benchmarks are easy to misinterpret, so take the exact numbers with a grain of salt. The benchmarks are
+            available in the repository so you can inspect them or run them for yourself.</p>
+        <h2 id="coercion">Coercion</h2>
+        <p>A small ergonomic annoyance with <code>SsoBox</code> is you can&#39;t create one with an unsized type quite like you
+            can with a <code>Box</code>. If you wanted a <code>Box&lt;dyn Trait&gt;</code>, you would first create a
+            <code>Box</code> with a concrete value and then cast it like this:</p>
+        <pre><code><span class="hljs-string">Box:</span>:<span class="hljs-keyword">new</span>(<span class="hljs-string">MyStruct:</span>:<span class="hljs-keyword">new</span>()) <span class="hljs-keyword">as</span> Box&lt;dyn Trait&gt;</code></pre>
+        <p>There is an unstable <a
+                href="https://doc.rust-lang.org/stable/std/ops/trait.CoerceUnsized.html"><code>CoerceUnsized</code></a> trait
+            that can be used to provide <a
+                href="https://doc.rust-lang.org/reference/type-coercions.html#unsized-coercions">unsized coercions</a> for
+            user-defined types. However, it requires a &quot;foundational&quot; type that already implements
+            <code>CoerceUnsized</code> for it to use and <code>&lt;T as Pointee&gt;::Metadata</code> is not one of them. It
+            would be nice if the compiler realized that <code>T::Metadata</code> can be coerced into <code>U::Metadata</code> if
+            <code>T: Usize&lt;U&gt;</code>, but that may be a stretch.</p>
+        <p>So to aid in ergonomics, <code>SsoBox</code> has a <code>new_usized</code> method to go directly from a concrete
+            value to an unsized box. There is also an <code>into_unsized</code> method to do the same if the concrete
+            <code>SsoBox</code> was already created.</p>
+        <p>It is a shame <code>SsoBox</code> can&#39;t be a drop-in replacement due to this.</p>
+        <h2 id="pinning">Pinning</h2>
+        <p>Unfortunately, even though intended for use with trait objects, an <code>SsoBox</code> isn&#39;t that helpful for
+            <code>dyn Future</code>. Polling a future requires it to be pinned, but
+            <code>Pin&lt;SsoBox&lt;dyn Future&gt;&gt;</code> cannot guarantee that the value doesn&#39;t move - <em>moving</em>
+            an <code>SsoBox</code> would mean moving the value if it were stored in-place.</p>
+        <p>However, <code>Pin&lt;SsoBox&lt;dyn Future + Unpin&gt;&gt;</code> is a workable pattern. If a future is
+            <code>Unpin</code> then it can be stored directly, but if it is not then boxing the future will ensure it stays
+            pinned and that box can be stored in-place in the <code>SsoBox</code>. Boxes within boxes. So it could still be
+            beneficial if a portion of your tasks are small and <code>Unpin</code>, but from my experience that only tends to be
+            the case with hand-rolled futures and unlikely with <code>async</code>. So your mileage may vary.</p>
+        <h2 id="prior-art">Prior Art</h2>
+        <p>Crates like <a href="https://crates.io/crates/smallvec">smallvec</a> and <a
+                href="https://crates.io/crates/compact_str">compact-str</a> have been around for a long time that can store
+            slices in-place and dynamically transition to an allocation if needed, but the layouts of slices are simple and
+            stable. Handling unsized types in general introduces totally different concerns.</p>
+        <p>In my research, I did come across the <a href="https://crates.io/crates/static-box">static-box</a> crate which on its
+            face sounds like it does something similar, but it is largely just <code>std::ptr::write</code> that also writes the
+            metadata for trait objects. There is plenty of overlap, since the fundamental problem is around pointer metadata.
+        </p>
+        <p>You can also find discussions of people thinking to use allocators directly in a <code>Box&lt;_, A&gt;</code> to
+            provide a similar effect. However by the wording of <code>Allocator</code> that would be unsafe, and I&#39;m not
+            sure that would be possible with <code>Box</code>&#39;s current design around pointer stability. It would need a big
+            retrofit to make that work.</p>
+        <h2 id="future-work">Future Work</h2>
+        <p>What I have implemented is workable but I think some additions would make sense.</p>
+        <p>I will likely incorporate custom sizes for the internal buffer. Holding two machine words seemed like a happy medium
+            in my opinion. But its easy to see that some may desire a single machine word so that it matches the existing size
+            of a <code>Box</code>, or having a much larger buffer based on their expected values if the bloated size of the box
+            is an acceptable compromise.</p>
+        <p>It also might make sense to also incorporate custom allocator support - also unstable. Environments with custom
+            allocators may have more desire for minimizing costs, but also custom allocators can be much cheaper than general
+            allocators so the gains might not be so large. I&#39;m not sure.</p>
+        <p>I provided many trait implementations that the standard library provides for their <code>Box</code>, but I skipped
+            many of them that were singularly for <code>str</code> or slices. PRs would be welcome if they reflect what the
+            standard library provides.</p>
+        <h2 id="conclusion">Conclusion</h2>
+        <p>I&#39;m pretty happy with the implementation. It mostly works just like a normal <code>Box</code> just with a new
+            shortcut that saves on performance without costing much. Miri has been used throughout the development process to
+            ensure no obvious undefined behavior is being relied on.</p>
+        <p>I do wish it were on stable though. Here are the unstable features that are used:</p>
+        <ul>
+            <li><a href="https://github.com/rust-lang/rust/issues/69835"><code>layout_for_ptr</code></a> - this enables the
+                inhabitance check to get layout information using only a pointer</li>
+            <li><a href="https://github.com/rust-lang/rust/issues/81513"><code>ptr_metadata</code></a> - this is what allows you
+                to split fat pointers apart and access their metadata</li>
+            <li><a href="https://github.com/rust-lang/rust/issues/18598"><code>unsize</code></a> - this provides constraints for
+                generically performing unsizing coercions</li>
+        </ul>
+        <p>I hope they get stabilized eventually.</p>
+        <p>Anyways, thanks for reading! Hope you found it insightful or at least interesting. I wish you all well on your own
+            <code>unsafe</code> adventures.</p>
+      </div>
+      <footer style="color: dimgray" class="card">
+        Copyright © Trevor Wilson 2025
+      </footer>
+    </div>
+    <div id="right"></div>
+  </body>
+</html>
