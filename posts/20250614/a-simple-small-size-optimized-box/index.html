@@ -166,7 +166,7 @@
             make no mention that the data pointer needs to be valid. And conceptually, it shouldn&#39;t need to be - the
             size of a trait object is available through the vtable pointer, not the value itself - and the size of the slice is
             calculated from the length (i.e. the metadata) and the statically known size of the elements.</p>
-        <p>You can view the full implementation in the repository.</p>
+        <p>You can view the full implementation in the <a href="https://github.com/kmdreko/ssobox">repository</a>.</p>
         <h2 id="performance">Performance</h2>
         <p>This doesn&#39;t come for free. The SSO box now has a condition to check whenever an unsized value is accessed from
             the box. With a standard <code>Box</code>, its representation is equivalent to that of a reference, so deref-ing it
@@ -209,7 +209,8 @@ large   | <span class="hljs-type">31</span><span class="hljs-number">.867</span>
             <code>Box</code>. My guess is that <code>SsoBox</code> leaves the rest of the box uninitialized while a
             <code>Box</code> has to write a dummy pointer. Maybe that saves a clock cycle.</p>
         <p>Micro-benchmarks are easy to misinterpret, so take the exact numbers with a grain of salt. The benchmarks are
-            available in the repository so you can inspect them or run them for yourself.</p>
+            available in the <a href="https://github.com/kmdreko/ssobox">repository</a> so you can inspect them or run 
+            them for yourself.</p>
         <h2 id="coercion">Coercion</h2>
         <p>A small ergonomic annoyance with <code>SsoBox</code> is you can&#39;t create one with an unsized type quite like you
             can with a <code>Box</code>. If you wanted a <code>Box&lt;dyn Trait&gt;</code>, you would first create a
