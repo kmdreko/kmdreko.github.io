@@ -6,7 +6,7 @@
     <meta name="copyright"content="Trevor Wilson 2025"/>
     <meta name="revised" content="2025-06-14T00:00:00Z"/>
     <meta name="language" content="EN">
-    <meta name="keywords" content="Rust,Memory"/>
+    <meta name="keywords" content="Rust,Memory,Optimization"/>
     <meta name="description" content="I created my own Box-like type that avoids an allocation by storing the value in-place if small enough."/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="og:title" content="A Simple Small-size Optimized Box"/>
@@ -71,7 +71,7 @@
       </header>
       <div class="content card">
         <h1 class="card-title">A Simple Small-size Optimized Box</h1>
-        <p class="sub-title">JUNE 14, 2025 | RUST, MEMORY</p>
+        <p class="sub-title">JUNE 14, 2025 | RUST, MEMORY, OPTIMIZATION</p>
         <p>I created my own <code>Box</code>-like type that avoids an allocation by storing the value in-place if small enough.
             I have seen plenty of crates with short-string optimizations, but I hadn&#39;t encountered the same for the general
             case. Likely because the features to support it are unstable and would require using the <em>nightly</em>
@@ -229,7 +229,8 @@ large   | <span class="hljs-type">31</span><span class="hljs-number">.867</span>
         <p>It is a shame <code>SsoBox</code> can&#39;t be a drop-in replacement due to this.</p>
         <h2 id="pinning">Pinning</h2>
         <p>Unfortunately, even though intended for use with trait objects, an <code>SsoBox</code> isn&#39;t that helpful for
-            <code>dyn Future</code>. Polling a future requires it to be pinned, but
+            <code>dyn Future</code> because of <code>Pin</code>. <code>Pin</code> is a wrapper around pointer types used to 
+            provide guarantees that the value pointed to doesn't move. Polling a future requires it to be pinned, but
             <code>Pin&lt;SsoBox&lt;dyn Future&gt;&gt;</code> cannot guarantee that the value doesn&#39;t move - <em>moving</em>
             an <code>SsoBox</code> would mean moving the value if it were stored in-place.</p>
         <p>However, <code>Pin&lt;SsoBox&lt;dyn Future + Unpin&gt;&gt;</code> is a workable pattern. If a future is
