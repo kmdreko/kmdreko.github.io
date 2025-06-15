@@ -229,25 +229,35 @@ large   | <span class="hljs-type">31</span><span class="hljs-number">.867</span>
             <code>SsoBox</code> was already created.</p>
         <p>It is a shame <code>SsoBox</code> can&#39;t be a drop-in replacement due to this.</p>
         <h2 id="pinning">Pinning</h2>
-        <p>Unfortunately, even though intended for use with trait objects, an <code>SsoBox</code> isn&#39;t that helpful for
-            <code>dyn Future</code> because of <code>Pin</code>. <code>Pin</code> is a wrapper around pointer types used to 
-            provide guarantees that the value pointed to doesn't move. Polling a future requires it to be pinned, but
-            <code>Pin&lt;SsoBox&lt;dyn Future&gt;&gt;</code> cannot guarantee that the value doesn&#39;t move - <em>moving</em>
-            an <code>SsoBox</code> would mean moving the value if it were stored in-place.</p>
-        <p>However, <code>Pin&lt;SsoBox&lt;dyn Future + Unpin&gt;&gt;</code> is a workable pattern. If a future is
-            <code>Unpin</code> then it can be stored directly, but if it is not then boxing the future will ensure it stays
-            pinned and that box can be stored in-place in the <code>SsoBox</code>. Boxes within boxes. So it could still be
-            beneficial if a portion of your tasks are small and <code>Unpin</code>, but from my experience that only tends to be
-            the case with hand-rolled futures and unlikely with <code>async</code>. So your mileage may vary.</p>
+        <p>Unfortunately, even though intended for use with trait objects, an
+        <code>SsoBox</code> isn't as nice for <code>dyn Future</code> because of
+        <code>Pin</code>. <code>Pin</code> is a wrapper around pointer types used to
+        provide guarantees that the value pointed to doesn't move. Polling a future
+        requires it to be pinned, but <code>Pin&lt;SsoBox&lt;dyn
+        Future&gt;&gt;</code> can't be created unless the value is <code>Unpin</code>
+        since it cannot guarantee that the value doesn't move - moving an SsoBox
+        would mean moving the value if it were stored in-place. If you wanted to
+        <code>.await</code> an <code>SsoBox&lt;dyn Future&gt;</code>, you'd have to
+        pin it yourself either to the stack (or put away in a <code>Box</code> but
+        that would defeat the purpose).</p>
+        <p>If you wanted to <code>.await</code> without hassle, it'd have to be
+        <code>Pin&lt;SsoBox&lt;dyn Future + Unpin&gt;&gt;</code>, which isn't an
+        unreasonable pattern. Small <code>Unpin</code> futures can be stored in-place
+        while <code>!Unpin</code> futures can first be boxed for stability.
+        Boxes within boxes. So its possible, but from my experience it seems unlikely
+        to be beneficial especially if you're using <code>async</code>.</p>
         <h2 id="prior-art">Prior Art</h2>
         <p>Crates like <a href="https://crates.io/crates/smallvec">smallvec</a> and <a
                 href="https://crates.io/crates/compact_str">compact-str</a> have been around for a long time that can store
             slices in-place and dynamically transition to an allocation if needed, but the layouts of slices are simple and
             stable. Handling unsized types in general introduces totally different concerns.</p>
-        <p>In my research, I did come across the <a href="https://crates.io/crates/static-box">static-box</a> crate which on its
-            face sounds like it does something similar, but it is largely just <code>std::ptr::write</code> that also writes the
-            metadata for trait objects. There is plenty of overlap, since the fundamental problem is around pointer metadata.
-        </p>
+        <p><em>EDIT:</em> It has been brought to my attention that the <a href="https://crates.io/crates/smallbox">smallbox</a>
+            crate reaches for the same goal while also being available on the stable
+            compiler. The implementation there would incur a pointer's worth of extra
+            space when the value is stored in-place due to using a full <code>*const
+            T</code>, so my implementation still has that optimization going for it. It looks
+            like the go-to crate for use on stable, but its ergonomics would also be better
+            with the nightly <code>unsize</code> feature.</p>
         <p>You can also find discussions of people thinking to use allocators directly in a <code>Box&lt;_, A&gt;</code> to
             provide a similar effect. However by the wording of <code>Allocator</code> that would be unsafe, and I&#39;m not
             sure that would be possible with <code>Box</code>&#39;s current design around pointer stability. It would need a big
